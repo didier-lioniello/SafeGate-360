@@ -58,12 +58,12 @@ Python 3.11 or 3.12 is supported.
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install --require-hashes -r requirements-lock.txt
+python -m pip install --require-hashes -r requirements-dev.txt
 
 python -m ruff check .
 python -m ruff format --check .
 python -m pytest
-python -m pip_audit --strict -r requirements-lock.txt
+python -m pip_audit --strict -r requirements-dev.txt
 python main.py audit --input examples/probes.jsonl
 ```
 
@@ -157,8 +157,10 @@ independent security and privacy review.
 
 `requirements.txt` is the exact direct runtime manifest. `requirements-dev.in` adds
 exact direct pins for build, audit, test, lint, and lock-generation tools.
-`requirements-lock.txt` is the generated transitive snapshot, including SHA-256 hashes
-for every accepted distribution artifact. `scripts/verify_lock.py` checks alignment
+`requirements-dev.txt` is the standard `pip-compile` output paired with that input and
+is the generated transitive snapshot, including SHA-256 hashes for every accepted
+distribution artifact. This pairing lets dependency automation update the input and
+compiled lock together. `scripts/verify_lock.py` checks alignment
 between those files, the build requirement, project metadata, and (optionally) the
 installed direct versions.
 

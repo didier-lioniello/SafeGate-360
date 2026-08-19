@@ -8,12 +8,12 @@ defaults are welcome.
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install --require-hashes -r requirements-lock.txt
+python -m pip install --require-hashes -r requirements-dev.txt
 python scripts/verify_lock.py --check-installed
 python -m ruff check .
 python -m ruff format --check .
 python -m pytest
-python -m pip_audit --strict -r requirements-lock.txt
+python -m pip_audit --strict -r requirements-dev.txt
 python -m build --wheel --no-isolation
 ```
 
@@ -26,17 +26,22 @@ blocking.
 - `requirements.txt` contains exact direct runtime pins.
 - `requirements-dev.in` includes the runtime manifest and contains exact direct QA tool
   pins.
-- `requirements-lock.txt` is generated and contains transitive pins and SHA-256 hashes.
+- `requirements-dev.txt` is the standard `pip-compile` output paired with
+  `requirements-dev.in`; it contains transitive pins and SHA-256 hashes so dependency
+  automation can update both files together.
 
 After intentionally reviewing and editing a direct pin, regenerate and verify the lock
-with the pinned `uv` version already installed from the current lock:
+with the pinned `pip-tools` version already installed from the current lock. Generate
+on Python 3.12 to match CI's reproducibility check:
 
 ```bash
-UV_CUSTOM_COMPILE_COMMAND='uv pip compile requirements-dev.in --universal --python-version 3.11 --generate-hashes --output-file requirements-lock.txt' \
-  uv pip compile requirements-dev.in --universal --python-version 3.11 --generate-hashes --output-file requirements-lock.txt
-python -m pip install --require-hashes -r requirements-lock.txt
+CUSTOM_COMPILE_COMMAND='pip-compile --resolver=backtracking --strip-extras --allow-unsafe --generate-hashes --no-emit-index-url --no-emit-trusted-host --output-file=requirements-dev.txt requirements-dev.in' \
+  pip-compile --resolver=backtracking --strip-extras --allow-unsafe --generate-hashes \
+    --no-emit-index-url --no-emit-trusted-host \
+    --output-file=requirements-dev.txt requirements-dev.in
+python -m pip install --require-hashes -r requirements-dev.txt
 python scripts/verify_lock.py --check-installed
-python -m pip_audit --strict -r requirements-lock.txt
+python -m pip_audit --strict -r requirements-dev.txt
 ```
 
 Keep the `setuptools` pin identical in `pyproject.toml` and

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify direct manifests, the hash-checked lock, and installed QA tools."""
+"""Verify direct manifests, the pip-tools lock, and installed QA tools."""
 
 from __future__ import annotations
 
@@ -18,22 +18,23 @@ from packaging.version import Version
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_MANIFEST = ROOT / "requirements.txt"
 DEV_MANIFEST = ROOT / "requirements-dev.in"
-LOCK = ROOT / "requirements-lock.txt"
+LOCK = ROOT / "requirements-dev.txt"
 PYPROJECT = ROOT / "pyproject.toml"
 
 LOCK_COMMAND = (
-    "uv pip compile requirements-dev.in --universal --python-version 3.11 "
-    "--generate-hashes --output-file requirements-lock.txt"
+    "pip-compile --resolver=backtracking --strip-extras --allow-unsafe "
+    "--generate-hashes --no-emit-index-url --no-emit-trusted-host "
+    "--output-file=requirements-dev.txt requirements-dev.in"
 )
 REQUIRED_DEV_PINS = {
     "build",
     "packaging",
     "pip",
     "pip-audit",
+    "pip-tools",
     "pytest",
     "ruff",
     "setuptools",
-    "uv",
 }
 HASH_RE = re.compile(r"--hash=sha256:[0-9a-f]{64}(?:\\|$)")
 
@@ -104,7 +105,7 @@ def _read_lock() -> tuple[dict[str, set[str]], list[str]]:
         starts.append((index, canonicalize_name(requirement.name), specs[0].version))
 
     if not starts:
-        raise VerificationError("requirements-lock.txt has no package entries")
+        raise VerificationError(f"{LOCK.name} has no package entries")
 
     versions: dict[str, set[str]] = {}
     errors: list[str] = []
