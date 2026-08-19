@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_INPUT: "1"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-lock.txt
+
+      - name: Install dependencies
+        run: python -m pip install --require-hashes -r requirements-lock.txt
+
+      - name: Verify dependency manifests and lock
+        run: |
+          python scripts/verify_lock.py --check-installed
+          lock_check="${RUNNER_TEMP}/requirements-lock.txt"
+          UV_CUSTOM_COMPILE_COMMAND='uv pip compile requirements-dev.in --universal --python-version 3.11 --generate-hashes --output-file requirements-lock.txt' \
+            uv pip compile requirements-dev.in --universal --python-version 3.11 --generate-hashes --output-file "${lock_check}"
+          diff -u requirements-lock.txt "${lock_check}"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Check formatting
+        run: python -m ruff format --check .
+
+      - name: Test
+        run: python -m pytest
+
+      - name: Audit locked Python dependencies
+        run: python -m pip_audit --strict -r requirements-lock.txt
+
+      - name: Build and smoke-test the wheel
+        run: |
+          dist_dir="${RUNNER_TEMP}/dist"
+          smoke_venv="${RUNNER_TEMP}/wheel-smoke"
+          python -m build --wheel --no-isolation --outdir "${dist_dir}"
+          python -m venv "${smoke_venv}"
+          "${smoke_venv}/bin/python" -m pip install --require-hashes -r requirements-lock.txt
+          "${smoke_venv}/bin/python" -m pip install --no-deps "${dist_dir}"/*.whl
+          (
+            cd "${RUNNER_TEMP}"
+            "${smoke_venv}/bin/safegate-reference" --help
+            "${smoke_venv}/bin/python" - <<'PY'
+          from importlib.metadata import distribution, version
+          from importlib.resources import files
+
+          assert version("safegate-360-reference") == "0.3.0"
+          packaged_files = {str(path) for path in distribution("safegate-360-reference").files or ()}
+          assert "examples/probes.jsonl" in packaged_files
+          probes = files("examples").joinpath("probes.jsonl")
+          assert probes.is_file()
+          assert '"expected_action"' in probes.read_text(encoding="utf-8")
+          PY
+          )

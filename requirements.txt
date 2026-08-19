@@ -1,0 +1,2 @@
+# Direct runtime dependency. Keep this exact pin aligned with requirements-lock.txt.
+click==8.4.2

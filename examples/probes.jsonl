@@ -1,0 +1,7 @@
+{"id":"clean","fixture":"clean","expected_action":"allow"}
+{"id":"jailbreak","fixture":"jailbreak","expected_action":"block"}
+{"id":"prompt-injection","fixture":"prompt_injection","expected_action":"block"}
+{"id":"synthetic-credential","fixture":"synthetic_cloud_key","expected_action":"block"}
+{"id":"synthetic-email","fixture":"synthetic_email","expected_action":"redact"}
+{"id":"synthetic-identifier","fixture":"synthetic_ssn","expected_action":"redact"}
+{"id":"toxicity-signal","fixture":"toxicity_signal","expected_action":"block"}
