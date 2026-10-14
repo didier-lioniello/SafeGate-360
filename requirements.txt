@@ -1,2 +1,2 @@
 # Direct runtime dependency. Keep this exact pin aligned with requirements-dev.txt.
-click==8.4.2
+click==8.5.0
